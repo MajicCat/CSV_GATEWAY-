@@ -1,0 +1,93 @@
+
+Discarded input sections
+
+ .text          0x0000000000000000        0x0 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+ .data          0x0000000000000000        0x0 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+ .bss           0x0000000000000000        0x0 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+DCT1_FLASH       0x0000000008004000 0x0000000000004000 xr
+DCT2_FLASH       0x0000000008008000 0x0000000000004000 xr
+APP_FLASH        0x000000000800c000 0x00000000000f4000 xr
+SRAM             0x0000000020000000 0x0000000000020000 xrw
+CCM_SRAM         0x0000000010000000 0x0000000000010000 xrw
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+                0x0000000000000fa0                __STACKSIZE__ = 0xfa0
+
+.glue_7         0x0000000008004000        0x0
+ .glue_7        0x0000000000000000        0x0 linker stubs
+
+.glue_7t        0x0000000008004000        0x0
+ .glue_7t       0x0000000000000000        0x0 linker stubs
+
+.vfp11_veneer   0x0000000008004000        0x0
+ .vfp11_veneer  0x0000000000000000        0x0 linker stubs
+
+.v4_bx          0x0000000008004000        0x0
+ .v4_bx         0x0000000000000000        0x0 linker stubs
+
+.iplt           0x0000000008004000        0x0
+ .iplt          0x0000000000000000        0x0 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+.igot.plt       0x0000000020000000        0x0
+ .igot.plt      0x0000000000000000        0x0 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+.rodata         0x0000000008004000     0x1db0
+                0x0000000008004000                dct_location = .
+ *(.rodata.initial_dct)
+ .rodata.initial_dct
+                0x0000000008004000     0x1db0 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+ *(.rodata.wiced_apps_lut)
+ *(.rodata.wiced_apps_lut_fill)
+ *(.rodata._app_dct)
+                0x0000000008005db0                dct_end = .
+                0x0000000000004000                PROVIDE (dct_full_size_loc, 0x4000)
+                0x0000000000001db0                PROVIDE (dct_used_size_loc, (dct_end - ORIGIN (DCT1_FLASH)))
+LOAD build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+LOAD /Users/msenel/Documents/WORK/WICED-SDK-3.5.2/tools/ARM_GNU/bin/OSX/../../lib/thumb/v7em/libstdc++.a
+LOAD /Users/msenel/Documents/WORK/WICED-SDK-3.5.2/tools/ARM_GNU/bin/OSX/../../lib/thumb/v7em/libm.a
+START GROUP
+LOAD /Users/msenel/Documents/WORK/WICED-SDK-3.5.2/tools/ARM_GNU/bin/OSX/../../lib/thumb/v7em/libgcc.a
+LOAD /Users/msenel/Documents/WORK/WICED-SDK-3.5.2/tools/ARM_GNU/bin/OSX/../../lib/thumb/v7em/libc.a
+END GROUP
+OUTPUT(build/waf.bootloader-NoOS-ISM43341_M4G_L44/DCT.elf elf32-littlearm)
+
+.rel.dyn        0x0000000008005db0        0x0
+ .rel.iplt      0x0000000000000000        0x0 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+.debug_info     0x0000000000000000      0xfef
+ .debug_info    0x0000000000000000      0xfef build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+.debug_abbrev   0x0000000000000000      0x139
+ .debug_abbrev  0x0000000000000000      0x139 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+.debug_aranges  0x0000000000000000       0x18
+ .debug_aranges
+                0x0000000000000000       0x18 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+.debug_line     0x0000000000000000       0xf2
+ .debug_line    0x0000000000000000       0xf2 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+.debug_str      0x0000000000000000     0x2149
+ .debug_str     0x0000000000000000     0x2149 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+                                       0x21b1 (size before relaxing)
+
+.comment        0x0000000000000000       0x11
+ .comment       0x0000000000000000       0x11 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+                                         0x12 (size before relaxing)
+
+.ARM.attributes
+                0x0000000000000000       0x33
+ .ARM.attributes
+                0x0000000000000000       0x33 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+
+Cross Reference Table
+
+Symbol                                            File
+dct_full_size_loc                                 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o
+dct_used_size_loc                                 build/waf.bootloader-NoOS-ISM43341_M4G_L44/internal_dct.o

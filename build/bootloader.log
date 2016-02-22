@@ -1,0 +1,21 @@
+MAKEFILE MAKECMDGOALS=waf.bootloader-NoOS-ISM43341_M4G_L44 OTA2_SUPPORT is disabled
+waf.bootloader-NoOS-ISM43341_M4G_L44
+----------------------------------|---------|---------|
+                                  |         |  Static |
+              Module              |  Flash  |   RAM   |
+----------------------------------+---------+---------|
+App                               |     124 |       0 |
+crc                               |    1060 |       0 |
+Host MCU-family library           |    6844 |    4208 |
+Interrupt Vectors                 |     388 |       0 |
+libc                              |     548 |       0 |
+platform                          |     972 |      76 |
+RAM Initialisation                |      20 |       0 |
+Ring_Buffer                       |      20 |       0 |
+SPI_Flash_Library_ISM43341_M4G_L44|     512 |       0 |
+WWD                               |     160 |       4 |
+----------------------------------+---------+---------|
+TOTAL (bytes)                     |   10628 |    8576 |
+----------------------------------|---------|---------|
+
+Build complete
