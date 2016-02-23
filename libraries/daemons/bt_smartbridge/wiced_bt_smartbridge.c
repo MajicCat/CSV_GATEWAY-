@@ -182,6 +182,7 @@ static void smartbridge_gatt_read_operation_complete_handler( wiced_bt_gatt_data
         subprocedure.result = WICED_BT_SUCCESS;
 
         WPRINT_LIB_INFO( ( "[Smartbridge] Read value: UUID:%x length:%d\n", attr->type.uu.uuid16, attr->type.len ) );
+        WPRINT_LIB_ERROR( ( "[Smartbridge - Murat] Read value: UUID:%x length:%d\n", attr->type.uu.uuid16, attr->type.len ) );
 
         if( subprocedure.subprocedure == GATT_READ_CHARACTERISTIC_VALUE )
         {
@@ -195,6 +196,7 @@ static void smartbridge_gatt_read_operation_complete_handler( wiced_bt_gatt_data
             for ( i = 0; i < attr->value_length; i ++ )
             {
                 WPRINT_LIB_INFO( ( "%02x ", (int)attr->value.value[i] ) );
+                WPRINT_LIB_ERROR( ( "[Murat] %02x ", (int)attr->value.value[i] ) );
             }
         }
         WPRINT_LIB_INFO( ( "\n" ) );
@@ -213,8 +215,10 @@ static wiced_result_t smartbridge_gatt_notification_indication_handler( wiced_bt
     uint16_t attribute_handle   = operation_complete->response_data.att_value.handle;
     uint8_t* data               = operation_complete->response_data.att_value.p_data;
     uint8_t  length             = operation_complete->response_data.att_value.len;
+    int i;
 
     /* Search for socket with indicated connection handle in the connected list */
+    //WPRINT_LIB_INFO( ( "[Murat] Coming here:%s", __FUNCTION__) );
     if ( bt_smartbridge_socket_manager_find_socket_by_handle( connection_handle, &socket ) == WICED_BT_SUCCESS )
     {
         if ( bt_smartbridge_att_cache_is_enabled() == WICED_TRUE && socket->att_cache != NULL )
@@ -252,6 +256,11 @@ static wiced_result_t smartbridge_gatt_notification_indication_handler( wiced_bt
                 att->type         = uuid;
                 att->value_length = length;
                 memcpy( att->value.value, data, length );
+                WPRINT_LIB_INFO( ( "[Murat] Value:0x") );
+                for (i=0; i < length; i++) {
+                	WPRINT_LIB_INFO( ( "%02x ", att->value.value[i]) );
+                }
+                WPRINT_LIB_INFO( ( "\n") );
 
                 if ( is_new_att == WICED_TRUE )
                 {
@@ -498,6 +507,7 @@ wiced_bt_gatt_status_t smartbridge_gatt_callback( wiced_bt_gatt_evt_t event, wic
             {
                 if ( p_event_data->operation_complete.op == GATTC_OPTYPE_READ )
                 {
+                	WPRINT_LIB_INFO( ( "[Murat] Coming here? %s\n" , __FUNCTION__) );
                     smartbridge_gatt_read_operation_complete_handler( &p_event_data->operation_complete.response_data.att_value );
                 }
 
