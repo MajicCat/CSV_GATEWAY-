@@ -76,6 +76,7 @@
 #include "wiced.h"
 #include "http_server.h"
 #include "tcp_client.h"
+#include "bt_wifi_queue.h"
 #include "bt_smartbridge.h"
 #include "sntp.h"
 #include "gedday.h"
@@ -126,7 +127,6 @@
 static wiced_result_t start_scan ( void );
 static wiced_result_t scan_complete_handler ( void );
 static wiced_result_t ble_connect ( wiced_bt_device_address_t address );
-static wiced_result_t data_q_has_space (data_q_t *data_q);
 static wiced_result_t ble_data_write (void* arg);
 static wiced_result_t scan_advertising_report_handler( const wiced_bt_smart_advertising_report_t* advertising_report );
 static wiced_result_t connect_handler( void* arg );
@@ -1003,42 +1003,6 @@ static wiced_result_t store_bond_info( const wiced_bt_smart_bond_info_t* bond_in
 	wiced_dct_read_unlock( (void*) bond_info_dct, WICED_TRUE );
 
 	wiced_rtos_unlock_mutex( &dct_mutex );
-
-	return WICED_SUCCESS;
-}
-
-/* Utility function to check space */
-static wiced_result_t data_q_has_space(data_q_t *data_q)
-{
-	int r = data_q->r_indx;
-	int w = data_q->w_indx;
-
-	if ((w == 0) && (r == 0))
-		return WICED_SUCCESS;
-
-	if (w <= r)
-		return ( ((w+1) <= r) ? WICED_SUCCESS : WICED_ERROR);
-	else
-		return ( (((w+1) % DATA_Q_SZ) > r ) ? WICED_SUCCESS : WICED_ERROR);
-}
-
-/* The caller needs to check whether there is enough space.
- * Otherwise ASSERT here
- */
-static wiced_result_t write_to_data_q(uint8_t new_data, data_q_t *data_q)
-{
-	int w = data_q->w_indx;
-
-	/* TODO: Assert here
-	if (data_q_has_space(data_q) != WICED_SUCCESS) {
-		WPRINT_APP_INFO( ("[ERROR] Data Queue FULL: r%d - w%d\r\n",
-				data_q->r_indx, data_q->w_indx) );
-		return WICED_ERROR;
-	}
-	*/
-
-	data_q->data[(w+1)%DATA_Q_SZ] = new_data;
-	data_q->w_indx = (data_q->w_indx + 1) % DATA_Q_SZ;
 
 	return WICED_SUCCESS;
 }

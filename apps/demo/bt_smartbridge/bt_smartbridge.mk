@@ -13,6 +13,7 @@ NAME := App_BT_SmartBridge
 $(NAME)_SOURCES    := bt_smartbridge.c \
                       default_renderer.c \
                       tcp_client.c \
+		      bt_wifi_queue.c \
                       wiced_sense_renderer.c
 
 $(NAME)_COMPONENTS += daemons/HTTP_server \

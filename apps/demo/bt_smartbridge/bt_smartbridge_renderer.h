@@ -11,6 +11,7 @@
 
 #include "http_server.h"
 #include "wiced_bt_smartbridge.h"
+#include "bt_wifi_queue.h"
 
 #ifdef __cplusplus
 extern "C" {

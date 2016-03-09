@@ -7,6 +7,7 @@
 #include "wiced.h"
 #include "wiced_bt_smartbridge.h"
 #include "bt_smartbridge.h"
+#include "bt_wifi_queue.h"
 
 
 /******************************************************
@@ -31,8 +32,6 @@
  ******************************************************/
 
 static wiced_result_t tcp_client();
-static int data_q_data_avail_ctr(data_q_t data_q);
-static wiced_result_t flush_data_q (char *tx_data, data_q_t *data_q);
 /******************************************************
  *	       Variable Definitions
  ******************************************************/
@@ -79,6 +78,7 @@ static wiced_result_t tcp_client( void* arg )
     	const wiced_ip_address_t INITIALISER_IPV4_ADDRESS( server_ip_address, TCP_SERVER_IP_ADDRESS );
 	int			connection_retries;
     	UNUSED_PARAMETER( arg );
+	int i;
 
 	/* Check whether there is any BLE data */
 	tx_data_sz = data_q_data_avail_ctr(bt_to_wifi_data);
@@ -143,9 +143,15 @@ static wiced_result_t tcp_client( void* arg )
 	/* Get the contents of the received packet */
 	wiced_packet_get_data(rx_packet, 0, (uint8_t**)&rx_data, &rx_data_length, &available_data_length);
 
-	/* Null terminate the received string */
-	rx_data[rx_data_length] = '\x0';
-	WPRINT_APP_INFO(("%s", rx_data));
+	WPRINT_APP_INFO(("Size:%d, avail:%d\n", rx_data_length,
+			available_data_length));
+	/*for (i = 0; i < rx_data_length; i++) {
+		if ((i % 50) == 0)
+		 	WPRINT_APP_INFO(("\n"));
+		WPRINT_APP_INFO(("0x%x ", rx_data[i]));
+	}
+	WPRINT_APP_INFO(("\n"));*/
+
 
 	/* Delete the packet and terminate the connection */
 	wiced_packet_delete(rx_packet);
@@ -153,43 +159,4 @@ static wiced_result_t tcp_client( void* arg )
 
 	return WICED_SUCCESS;
 
-}
-
-/* Utility function to check available entries in the data_q  */
-/* FIXME: Need to do this in two steps. What happens if it fails? */
-static int data_q_data_avail_ctr(data_q_t data_q)
-{
-	int r = data_q.r_indx;
-	int w = data_q.w_indx;
-
-	if ((w == 0) && (r == 0))
-	  return 0;
-
-	return ((w >= r) ? (w - r + 1) : (99 + r - w) );
-
-}
-
-/* FIXME: Need to read operation in two steps.
- * We are screwed, if the operation fails
- */
-static wiced_result_t flush_data_q (char *tx_data, data_q_t *data_q)
-{
-	int data_to_copy = data_q_data_avail_ctr(*data_q);
-
-	*tx_data = (char)0xbe;
-	*(tx_data + 1) = (char)0xef;
-	tx_data += 2      ;
-	while (data_to_copy > 0) {
-		*tx_data = (char)data_q->data[data_q->r_indx];
-		tx_data++;
-		data_q->r_indx = (data_q->r_indx + 1) % DATA_Q_SZ;
-		data_to_copy--;
-	}
-
-	*(tx_data + 1) = 0xde;
-	*(tx_data + 2) = 0xad;
-	WPRINT_APP_INFO(("[TCPClient]: What happened to queue w:%d, r:%d\n",
-				data_q->w_indx, data_q->r_indx ));
-
-  	return WICED_SUCCESS;
 }

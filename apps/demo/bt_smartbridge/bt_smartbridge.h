@@ -8,13 +8,8 @@
 #ifndef APPS_DEMO_BT_SMARTBRIDGE_BT_SMARTBRIDGE_H_
 #define APPS_DEMO_BT_SMARTBRIDGE_BT_SMARTBRIDGE_H_
 
-#define DATA_Q_SZ	1000
+#include "bt_wifi_queue.h"
 
-typedef struct data_q {
-	uint8_t 	data[DATA_Q_SZ];
-	int		r_indx;
-	int		w_indx;
-} data_q_t;
 
 extern data_q_t bt_to_wifi_data;
 #endif /* APPS_DEMO_BT_SMARTBRIDGE_BT_SMARTBRIDGE_H_ */
