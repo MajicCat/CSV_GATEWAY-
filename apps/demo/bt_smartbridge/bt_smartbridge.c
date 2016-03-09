@@ -172,61 +172,74 @@ static wiced_result_t store_bond_info( const wiced_bt_smart_bond_info_t* bond_in
 
 /* Local HTTP page database */
 static START_OF_HTTP_PAGE_DATABASE(web_pages)
-		ROOT_HTTP_PAGE_REDIRECT("/apps/bt_smartbridge/smartbridge_report.html"),
-		{ "/apps/bt_smartbridge/smartbridge_report.html",			 "text/html",								WICED_RESOURCE_URL_CONTENT, .url_content.resource_data	= &resources_apps_DIR_bt_smartbridge_DIR_smartbridge_report_html, },
-		{ "/bluetooth_device_report.html",											"text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_smartbridge_report, 0 }, },
-		{ "/rescan"		,																				"text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_rescan, 0 }, },
-		{ "/return"		,																				"text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_return, 0 }, },
-		{ "/details"	 ,																				"text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_details, 0 }, },
-		{ "/connect"	 ,																				"text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_connect, 0 }, },
-		{ "/disconnect",																				"text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_disconnect, 0 }, },
-		{ "/set_passkey",																			 "text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_passkey, 0 }, },
-		{ "/clear_bond_info",																	 "text/html",								WICED_DYNAMIC_URL_CONTENT,	.url_content.dynamic_data	 = {process_clear_bond_info, 0 }, },
-		{ "/images/favicon.ico",																"image/vnd.microsoft.icon", WICED_RESOURCE_URL_CONTENT, .url_content.resource_data	= &resources_images_DIR_favicon_ico, },
-		{ "/scripts/general_ajax_script.js",										"application/javascript",	 WICED_RESOURCE_URL_CONTENT, .url_content.resource_data	= &resources_scripts_DIR_general_ajax_script_js, },
-		{ "/images/brcmlogo.png",															 "image/png",								WICED_RESOURCE_URL_CONTENT, .url_content.resource_data	= &resources_images_DIR_brcmlogo_png, },
-		{ "/images/brcmlogo_line.png",													"image/png",								WICED_RESOURCE_URL_CONTENT, .url_content.resource_data	= &resources_images_DIR_brcmlogo_line_png, },
-		{ "/styles/buttons.css",																"text/css",								 WICED_RESOURCE_URL_CONTENT, .url_content.resource_data	= &resources_styles_DIR_buttons_css, },
+	ROOT_HTTP_PAGE_REDIRECT("/apps/bt_smartbridge/smartbridge_report.html"),
+	{ "/apps/bt_smartbridge/smartbridge_report.html",	"text/html",	WICED_RESOURCE_URL_CONTENT,
+		.url_content.resource_data = &resources_apps_DIR_bt_smartbridge_DIR_smartbridge_report_html, },
+	{ "/bluetooth_device_report.html",			"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_smartbridge_report, 0 }, },
+	{ "/rescan",						"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_rescan, 0 }, },
+	{ "/return", 						"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_return, 0 }, },
+	{ "/details", 						"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_details, 0 }, },
+	{ "/connect", 						"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_connect, 0 }, },
+	{ "/disconnect",					"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_disconnect, 0 }, },
+	{ "/set_passkey",					"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_passkey, 0 }, },
+	{ "/clear_bond_info",					"text/html",	WICED_DYNAMIC_URL_CONTENT,
+		.url_content.dynamic_data = {process_clear_bond_info, 0 }, },
+	{ "/images/favicon.ico",		"image/vnd.microsoft.icon",	WICED_RESOURCE_URL_CONTENT,
+		.url_content.resource_data = &resources_images_DIR_favicon_ico, },
+	{ "/scripts/general_ajax_script.js",	"application/javascript",	WICED_RESOURCE_URL_CONTENT,
+		.url_content.resource_data = &resources_scripts_DIR_general_ajax_script_js, },
+	{ "/images/brcmlogo.png",				"image/png",	WICED_RESOURCE_URL_CONTENT,
+		.url_content.resource_data = &resources_images_DIR_brcmlogo_png, },
+	{ "/images/brcmlogo_line.png",				"image/png",	WICED_RESOURCE_URL_CONTENT,
+		.url_content.resource_data = &resources_images_DIR_brcmlogo_line_png, },
+	{ "/styles/buttons.css",				"text/css",	WICED_RESOURCE_URL_CONTENT,
+		.url_content.resource_data	= &resources_styles_DIR_buttons_css, },
 END_OF_HTTP_PAGE_DATABASE();
 
 /* Scan settings */
 static const wiced_bt_smart_scan_settings_t scan_settings =
 {
-		.type							= BT_SMART_ACTIVE_SCAN,
-		.filter_policy		 = FILTER_POLICY_NONE,
-		.filter_duplicates = DUPLICATES_FILTER_ENABLED,
-		.interval					= 96,
-		.window						= 48,
-		.duration_second	 = 3,
+		.type			= BT_SMART_ACTIVE_SCAN,
+		.filter_policy		= FILTER_POLICY_NONE,
+		.filter_duplicates	= DUPLICATES_FILTER_ENABLED,
+		.interval		= 96,
+		.window			= 48,
+		.duration_second	= 3,
 };
 
 /* SmartBridge connection settings */
 static const wiced_bt_smart_connection_settings_t connection_settings =
 {
-		.timeout_second								= 10,
-		.filter_policy								 = FILTER_POLICY_NONE,
-		.interval_min									= 40,
-		.interval_max									= 56,
-		.latency											 = 0,
-		.supervision_timeout					 = 100,
-		.ce_length_min								 = 0,
-		.ce_length_max								 = 0,
+		.timeout_second		= 10,
+		.filter_policy		= FILTER_POLICY_NONE,
+		.interval_min		= 40,
+		.interval_max		= 56,
+		.latency		= 0,
+		.supervision_timeout	= 100,
+		.ce_length_min		= 0,
+		.ce_length_max		= 0,
 		.attribute_protocol_timeout_ms = 10000,
 };
 
 /* SmartBridge security settings */
 static const wiced_bt_smart_security_settings_t security_settings =
 {
-		.timeout_second		= 15,
-		.io_capabilities						 = BT_SMART_IO_KEYBOARD_DISPLAY,
-		.authentication_requirements = AUTHENTICATION_REQUIREMENTS,
-		.oob_authentication					= OUT_OF_BAND_AUTHENTICATION,
-		.max_encryption_key_size		 = 16,
-		.master_key_distribution		 = BT_SMART_DISTRIBUTE_ALL_KEYS,
-		.slave_key_distribution			= BT_SMART_DISTRIBUTE_ALL_KEYS,
+		.timeout_second			= 15,
+		.io_capabilities		= BT_SMART_IO_KEYBOARD_DISPLAY,
+		.authentication_requirements	= AUTHENTICATION_REQUIREMENTS,
+		.oob_authentication		= OUT_OF_BAND_AUTHENTICATION,
+		.max_encryption_key_size	= 16,
+		.master_key_distribution	= BT_SMART_DISTRIBUTE_ALL_KEYS,
+		.slave_key_distribution		= BT_SMART_DISTRIBUTE_ALL_KEYS,
 };
 
-//static wiced_http_server_t						http_server;
 static wiced_bt_smartbridge_socket_t	smartbridge_socket[MAX_CONCURRENT_CONNECTIONS];
 static wiced_bt_smartbridge_socket_t*	socket_with_attributes_to_display = NULL;
 static wiced_worker_thread_t		connect_worker_thread;
@@ -238,10 +251,10 @@ static wiced_timed_event_t ble_data_write_event;
 
 static const bt_smartbridge_attribute_renderer_t renderers[] =
 {
-		{
-				.device_name = "WICED Sense Kit",
-				.renderer		= wiced_sense_attribute_renderer,
-		},
+	{
+		.device_name	= "WICED Sense Kit",
+		.renderer	= wiced_sense_attribute_renderer,
+	},
 };
 
 const wiced_bt_uuid_t uuid_list[] =
@@ -251,7 +264,7 @@ const wiced_bt_uuid_t uuid_list[] =
 };
 
 /******************************************************
- *							 Function Definitions
+ *		Function Definitions
  ******************************************************/
 
 /* Application entry point */
