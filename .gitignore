@@ -1,4 +1,5 @@
 generated_mac_address.txt
+cscope.out
 build/*
 .cproject
 .project

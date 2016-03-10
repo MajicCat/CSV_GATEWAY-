@@ -66,9 +66,6 @@ wiced_result_t flush_data_q (char *tx_data, data_q_t *data_q)
 {
 	int data_to_copy = data_q_data_avail_ctr(*data_q);
 
-	*tx_data = (char)0xbe;
-	*(tx_data + 1) = (char)0xef;
-	tx_data += 2      ;
 	while (data_to_copy > 0) {
 		*tx_data = (char)data_q->data[data_q->r_indx];
 		tx_data++;
@@ -76,8 +73,6 @@ wiced_result_t flush_data_q (char *tx_data, data_q_t *data_q)
 		data_to_copy--;
 	}
 
-	*(tx_data + 1) = 0xde;
-	*(tx_data + 2) = 0xad;
 	WPRINT_APP_INFO(("[TCPClient]: What happened to queue w:%d, r:%d\n",
 				data_q->w_indx, data_q->r_indx ));
 

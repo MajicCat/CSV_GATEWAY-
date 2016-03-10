@@ -507,15 +507,20 @@ static wiced_result_t ble_connect( wiced_bt_device_address_t address )
 
 		/* Search for BD_ADDR in the scan result list */
 		while ( temp != NULL ) {
-			/* If found, stop scan and send a connect request. Connect attempt is executed in connect_handler callback */
+			/* If found, stop scan and send a connect request.
+			 * Connect attempt is executed in connect_handler callback
+			 */
 			/* FIXME: Why is this a problem now?
 			if ( memcmp( address, temp->remote_device.address, sizeof(address) ) == 0 )
 			*/
-			if ( memcmp( address, temp->remote_device.address, sizeof(wiced_bt_device_address_t) ) == 0 ) {
-				WPRINT_APP_INFO(("[App] Trying to Connect to %s ...\n", temp->remote_device.name));
+			if ( memcmp( address, temp->remote_device.address,
+					sizeof(wiced_bt_device_address_t) ) == 0 ) {
+				WPRINT_APP_INFO(("[App] Trying to Connect to %s ...\n",
+						temp->remote_device.name));
 
 				/* Post request to connect_worker_thread */
-				wiced_rtos_send_asynchronous_event( &connect_worker_thread, connect_handler, (void*)temp );
+				wiced_rtos_send_asynchronous_event( &connect_worker_thread,
+					connect_handler, (void*)temp );
 				return WICED_SUCCESS;
 			}
 
@@ -575,28 +580,23 @@ process_disconnect( const char* url_path, const char* url_parameters, wiced_http
 		/* BD_ADDR is passed within the URL. Parse it here */
 		convert_address_string_to_type( url_parameters, &address );
 
-		for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ )
-		{
+		for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ ) {
 				wiced_bt_smartbridge_socket_status_t status;
 
 				wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
 
-				if ( status == SMARTBRIDGE_SOCKET_CONNECTED )
-				{
-						/* If found, Disconnect and restart scan */
-						if ( memcmp( address, smartbridge_socket[i].remote_device.address, sizeof( address ) ) == 0 )
-						{
-								/* Disable notification */
-								wiced_bt_smartbridge_disable_attribute_cache_notification( &smartbridge_socket[i] );
+				if ( status == SMARTBRIDGE_SOCKET_CONNECTED ) {
+					/* If found, Disconnect and restart scan */
+					if ( memcmp( address, smartbridge_socket[i].remote_device.address, sizeof( address ) ) == 0 ) {
+						/* Disable notification */
+						wiced_bt_smartbridge_disable_attribute_cache_notification( &smartbridge_socket[i] );
 
-								/* Disconnect */
-								wiced_bt_smartbridge_disconnect( &smartbridge_socket[i] );
-
-								return 0;
-						}
+						/* Disconnect */
+						wiced_bt_smartbridge_disconnect( &smartbridge_socket[i] );
+						return 0;
+					}
 				}
 		}
-
 		return 0;
 }
 
@@ -872,8 +872,8 @@ static wiced_result_t display_connection_list( wiced_http_response_stream_t* str
 								wiced_http_response_stream_write( stream, buffer, buffer_length );
 								wiced_http_response_stream_write_resource( stream, &resources_apps_DIR_bt_smartbridge_DIR_data_html_connected_device_end3 );
 						} else {
-								/* Write device address */
-								wiced_http_response_stream_write_resource( stream, &resources_apps_DIR_bt_smartbridge_DIR_data_html_cell_start );
+							/* Write device address */
+							wiced_http_response_stream_write_resource( stream, 	&resources_apps_DIR_bt_smartbridge_DIR_data_html_cell_start );
 
 								memset( buffer, 0, sizeof( buffer ) );
 								buffer_length = sprintf( buffer, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -1107,7 +1107,8 @@ connected_socket_found:
 									 attribute.type.uu.uuid128[1], attribute.type.uu.uuid128[0]);
 							}
 
-							if ( attribute.value_length > 0 ) {
+							if ( (attribute.value_length > 0) &&
+								(attribute.type.uu.uuid16== 0x2221) ) {
 								for ( i = 0; i < attribute.value_length; i++ ) {
 									if (write_to_data_q(attribute.value.value[i],
 										&bt_to_wifi_data) != WICED_SUCCESS) {
@@ -1119,6 +1120,8 @@ connected_socket_found:
 									buffer_length = sprintf( buffer, "%02X ", attribute.value.value[i] );
 								}
 							}
+							buffer[buffer_length] = '\0';
+							WPRINT_APP_ERROR( ("[SmartBridgeApp] Service: %s\n", buffer) );
 					}
 			}
 		}
