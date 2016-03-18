@@ -242,12 +242,14 @@ static const wiced_bt_smart_security_settings_t security_settings =
 
 static wiced_bt_smartbridge_socket_t	smartbridge_socket[MAX_CONCURRENT_CONNECTIONS];
 static wiced_bt_smartbridge_socket_t*	socket_with_attributes_to_display = NULL;
+static wiced_bt_smartbridge_socket_t*	csv_socket = NULL;
 static wiced_worker_thread_t		connect_worker_thread;
 static wiced_mutex_t			dct_mutex;
 static char				passkey[7] = DEFAULT_PASSKEY;
 data_q_t				bt_to_wifi_data;
 
 static wiced_timed_event_t ble_data_write_event;
+static wiced_timed_event_t ble_data_send_event;
 
 static const bt_smartbridge_attribute_renderer_t renderers[] =
 {
@@ -317,10 +319,17 @@ void application_start( )
 	}
 
 	/* Register a function to write BLE data into a queue */
-	if (wiced_rtos_register_timed_event( &ble_data_write_event,
+	/*if (wiced_rtos_register_timed_event( &ble_data_write_event,
 			WICED_NETWORKING_WORKER_THREAD, &ble_data_write, BLE_DATA_WRITE_INTERVAL * MILLISECONDS, 0 ) != WICED_SUCCESS ) {
 		WPRINT_APP_INFO( ("BLE_DATA_WRITE Register faiuled\n") );
+	}*/
+
+	/* Register a function to write BLE data into a queue */
+	if (wiced_rtos_register_timed_event( &ble_data_send_event,
+			WICED_NETWORKING_WORKER_THREAD, &ble_data_send, 5 * SECONDS, 0 ) != WICED_SUCCESS ) {
+		WPRINT_APP_INFO( ("BLE_DATA_WRITE Register faiuled\n") );
 	}
+
 
 	/* Start scanning for advertising remote Bluetooth devices */
 	start_scan();
@@ -443,10 +452,12 @@ static wiced_result_t disconnection_handler( wiced_bt_smartbridge_socket_t* sock
  */
 static wiced_result_t notification_handler( wiced_bt_smartbridge_socket_t* socket, uint16_t attribute_handle )
 {
-		/* GATT value notification event. attribute_handle is the handle
-		 * which value of the attribute is updated by the remote device.
-		 */
-		return WICED_SUCCESS;
+	/* GATT value notification event. attribute_handle is the handle
+	 * which value of the attribute is updated by the remote device.
+	 */
+	 ble_data_write(attribute_handle);
+
+	 return WICED_SUCCESS;
 }
 
 /* Pairing handler. Successful pairing is reported via this callback.
@@ -1023,8 +1034,8 @@ static wiced_result_t store_bond_info( const wiced_bt_smart_bond_info_t* bond_in
 static wiced_result_t ble_data_write (void* arg)
 {
 	char				buffer[256];
-	wiced_bt_smartbridge_socket_t	*socket = NULL;
-	wiced_bt_smart_attribute_t	attribute;
+	static wiced_bool_t		read_attribute_found;
+	static wiced_bt_smart_attribute_t read_attribute;
 	wiced_bt_smartbridge_socket_status_t	status;
 	uint16_t			starting_handle = 0;
 	int 				i, buffer_length;
@@ -1036,95 +1047,144 @@ static wiced_result_t ble_data_write (void* arg)
 		return WICED_ERROR;
 	}
 
+	/* FIXME: Need to check whether it is still connected. */
+	if (csv_socket != NULL)
+		goto connected_socket_found;
+
 	for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ ) {
 		wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
 
 		if ( status == SMARTBRIDGE_SOCKET_CONNECTED ) {
 			/* If found, start writing data */
-			socket = &smartbridge_socket[i];
+			csv_socket = &smartbridge_socket[i];
 			WPRINT_APP_DEBUG(("[SmartBridgeApp] Connected to socket:%d\n", i));
 			goto connected_socket_found;
 		}
 	}
 
-	if (socket == NULL) {
+	if (csv_socket == NULL) {
 		WPRINT_APP_INFO( ("[SmartBridgeApp] BLE Socket NULL\r\n"));
 		return WICED_ERROR;
 	}
 
 connected_socket_found:
 	/* Look for Primary Service. If found, write the Service UUID and Characteristic Value(s) to a buffer */
-	while ( wiced_bt_smartbridge_get_attribute_cache_by_uuid( socket, &uuid_list[0],
-			starting_handle, 0xffff, &attribute, sizeof( attribute ) ) == WICED_SUCCESS ) {
+	while ( wiced_bt_smartbridge_get_attribute_cache_by_uuid( csv_socket, &uuid_list[0],
+			starting_handle, 0xffff, &read_attribute, sizeof( read_attribute ) ) == WICED_SUCCESS ) {
 		uint16_t char_start_handle;
 		uint16_t char_end_handle;
 
 		/* Update starting handle for the next search */
-		starting_handle = attribute.handle + 1;
+		starting_handle = read_attribute.handle + 1;
 
 		/* Copy UUID to buffer */
 		memset( buffer, 0, sizeof( buffer ) );
 
-		if ( attribute.value.service.uuid.len == UUID_16BIT ) {
-			buffer_length = sprintf( buffer, "%04X", attribute.value.service.uuid.uu.uuid16 );
+		if ( read_attribute.value.service.uuid.len == UUID_16BIT ) {
+			buffer_length = sprintf( buffer, "%04X", read_attribute.value.service.uuid.uu.uuid16 );
 
 			buffer_length = sprintf( buffer, "%04X%04X-%04X-%04X-%04X-%04X%04X%04X",
-						attribute.value.service.uuid.uu.uuid128[7], attribute.value.service.uuid.uu.uuid128[6],
-						attribute.value.service.uuid.uu.uuid128[5], attribute.value.service.uuid.uu.uuid128[4],
-						attribute.value.service.uuid.uu.uuid128[3], attribute.value.service.uuid.uu.uuid128[2],
-						attribute.value.service.uuid.uu.uuid128[1], attribute.value.service.uuid.uu.uuid128[0]);
+						read_attribute.value.service.uuid.uu.uuid128[7],
+						read_attribute.value.service.uuid.uu.uuid128[6],
+						read_attribute.value.service.uuid.uu.uuid128[5],
+						read_attribute.value.service.uuid.uu.uuid128[4],
+						read_attribute.value.service.uuid.uu.uuid128[3],
+						read_attribute.value.service.uuid.uu.uuid128[2],
+						read_attribute.value.service.uuid.uu.uuid128[1],
+						read_attribute.value.service.uuid.uu.uuid128[0]);
 
-			/* Search characteristic and characteristic values. If found, write to HTTP server.
+			/* Search characteristic and characteristic values. If found, write to a queue.
 			 * Set the search start and end handles to the service start and end handles
 			 */
-			char_start_handle = attribute.value.service.start_handle;
-			char_end_handle	 = attribute.value.service.end_handle;
+			char_start_handle = read_attribute.value.service.start_handle;
+			char_end_handle	 = read_attribute.value.service.end_handle;
 
-			while ( wiced_bt_smartbridge_get_attribute_cache_by_uuid( socket, &uuid_list[1], char_start_handle,
-				 char_end_handle, &attribute, sizeof( attribute ) ) == WICED_SUCCESS ) {
+			while ( wiced_bt_smartbridge_get_attribute_cache_by_uuid( csv_socket, &uuid_list[1], char_start_handle,
+				 char_end_handle, &read_attribute, sizeof( read_attribute ) ) == WICED_SUCCESS ) {
 				/* Update characteristic start handle */
-				char_start_handle = attribute.value.characteristic.value_handle + 1;
+				char_start_handle = read_attribute.value.characteristic.value_handle + 1;
 
 					/* Get Characteristic Value using the handle */
-					if ( wiced_bt_smartbridge_get_attribute_cache_by_handle( socket,
-						attribute.value.characteristic.value_handle,
-				 		&attribute, sizeof( attribute ) ) == WICED_SUCCESS ) {
+					if ( wiced_bt_smartbridge_get_attribute_cache_by_handle( csv_socket,
+						read_attribute.value.characteristic.value_handle,
+				 		&read_attribute, sizeof( read_attribute ) ) == WICED_SUCCESS ) {
 							uint32_t i = 0;
 
 							/* Copy UUID to buffer */
 							memset( buffer, 0, sizeof( buffer ) );
 
 							/* Write Characteristic Value UUID */
-							if ( attribute.type.len == UUID_16BIT ) {
+							if ( read_attribute.type.len == UUID_16BIT ) {
 								buffer_length = sprintf( buffer, "%04X",
-									attribute.type.uu.uuid16 );
+									read_attribute.type.uu.uuid16 );
 							} else {
 								buffer_length = sprintf( buffer,
 									"%04X%04X-%04X-%04X-%04X-%04X%04X%04X",
-									 attribute.type.uu.uuid128[7], attribute.type.uu.uuid128[6],
-									 attribute.type.uu.uuid128[5], attribute.type.uu.uuid128[4],
-									 attribute.type.uu.uuid128[3], attribute.type.uu.uuid128[2],
-									 attribute.type.uu.uuid128[1], attribute.type.uu.uuid128[0]);
+									 read_attribute.type.uu.uuid128[7],
+									 read_attribute.type.uu.uuid128[6],
+									 read_attribute.type.uu.uuid128[5],
+									 read_attribute.type.uu.uuid128[4],
+									 read_attribute.type.uu.uuid128[3],
+									 read_attribute.type.uu.uuid128[2],
+									 read_attribute.type.uu.uuid128[1],
+									 read_attribute.type.uu.uuid128[0]);
 							}
 
-							if ( (attribute.value_length > 0) &&
-								(attribute.type.uu.uuid16== 0x2221) ) {
-								for ( i = 0; i < attribute.value_length; i++ ) {
-									if (write_to_data_q(attribute.value.value[i],
+							if ( (read_attribute.value_length > 0) &&
+								(read_attribute.type.uu.uuid16== 0x2221) ) {
+								for ( i = 0; i < read_attribute.value_length; i++ ) {
+									if (write_to_data_q(read_attribute.value.value[i],
 										&bt_to_wifi_data) != WICED_SUCCESS) {
 										WPRINT_APP_ERROR( ("[SmartBridgeApp] Could not BLE value to",
 												"Queue!! Timing wrong?\r\n") );
 										return WICED_ERROR;
 									}
 
-									buffer_length = sprintf( buffer, "%02X ", attribute.value.value[i] );
+									buffer_length = sprintf( buffer, "%02X ", read_attribute.value.value[i] );
 								}
 							}
-							buffer[buffer_length] = '\0';
-							WPRINT_APP_ERROR( ("[SmartBridgeApp] Service: %s\n", buffer) );
 					}
 			}
 		}
 	}
+	//wiced_bt_smartbridge_gatt_write_characteristic_value( socket, &new_attribute );
+	return WICED_SUCCESS;
+}
+
+/*static wiced_result_t ble_find_write_handle( void )
+{
+
+}*/
+
+static wiced_result_t ble_data_send (void *arg)
+{
+	wiced_bt_smartbridge_socket_status_t	status;
+	wiced_bt_smart_attribute_t		write_attribute;
+	int 					i;
+	UNUSED_PARAMETER( arg );
+
+	wiced_bt_smartbridge_get_socket_status( csv_socket, &status );
+
+	/* Socket not connected */
+	if ( status != SMARTBRIDGE_SOCKET_CONNECTED ) {
+		WPRINT_APP_DEBUG(("[SmartBridgeApp] Not connected to BLE-socket\n"));
+		return WICED_ERROR;
+	}
+
+	if (wiced_bt_smartbridge_get_attribute_cache_by_handle(csv_socket, 0x0d,
+		&write_attribute, sizeof(write_attribute)) != WICED_SUCCESS ) {
+		 WPRINT_APP_DEBUG(("[SmartBridgeApp] Could not find 0x0d attribute\n"));
+		return WICED_ERROR;
+	}
+
+	if (write_attribute.type.uu.uuid16 == 0x2222) {
+		write_attribute.value_length = 20;
+		for (i = 0; i < 20;  i++ )
+			write_attribute.value.value[i] = 0x44;
+		if (wiced_bt_smartbridge_write_attribute_cache_characteristic_value(csv_socket, &write_attribute) == WICED_SUCCESS);
+			WPRINT_APP_DEBUG(("[SmartBridgeApp] Write BLE att\n"));
+		//wiced_bt_smartbridge_gatt_write_characteristic_value( socket, &attribute );
+	}
+
 	return WICED_SUCCESS;
 }
