@@ -371,21 +371,20 @@ static wiced_result_t scan_complete_handler( void )
  */
 static wiced_result_t scan_advertising_report_handler( const wiced_bt_smart_advertising_report_t* advertising_report )
 {
-		WPRINT_APP_INFO(("[App] Scan result\n"));
+	WPRINT_APP_INFO(("[App] Scan result\n"));
 
-		/* This is an intermediate scan report. Scan result is maintained internally.
-		 * Call wiced_bt_smartbridge_get_scan_results() to obtain the complete list
-		 * after the scan process is complete.
+	/* This is an intermediate scan report. Scan result is maintained internally.
+	 * Call wiced_bt_smartbridge_get_scan_results() to obtain the complete list
+	 * after the scan process is complete.
+	 */
+	if ( advertising_report->event == BT_SMART_CONNECTABLE_DIRECTED_ADVERTISING_EVENT ) {
+		/* When a Bluetooth Smart devices sends a directed advertisement, the device
+		 * expects a connection request before the advertising duration expires.
+		 * In here, quickly send a connection request.
 		 */
-		if ( advertising_report->event == BT_SMART_CONNECTABLE_DIRECTED_ADVERTISING_EVENT	)
-		{
-				/* When a Bluetooth Smart devices sends a directed advertisement, the device
-				 * expects a connection request before the advertising duration expires.
-				 * In here, quickly send a connection request.
-				 */
-				wiced_rtos_send_asynchronous_event( &connect_worker_thread, connect_handler, (void*)advertising_report );
-		}
-		return WICED_SUCCESS;
+		wiced_rtos_send_asynchronous_event( &connect_worker_thread, connect_handler, (void*)advertising_report );
+	}
+	return WICED_SUCCESS;
 }
 
 /* Connect handler. Smartbridge connect is executed in this callback.
