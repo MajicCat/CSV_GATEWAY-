@@ -128,6 +128,7 @@ static wiced_result_t start_scan ( void );
 static wiced_result_t scan_complete_handler ( void );
 static wiced_result_t ble_connect ( wiced_bt_device_address_t address );
 static wiced_result_t ble_data_write (void* arg);
+static wiced_result_t ble_data_send (void *arg);
 static wiced_result_t scan_advertising_report_handler( const wiced_bt_smart_advertising_report_t* advertising_report );
 static wiced_result_t connect_handler( void* arg );
 static wiced_result_t disconnection_handler( wiced_bt_smartbridge_socket_t* socket );
@@ -247,6 +248,7 @@ static wiced_worker_thread_t		connect_worker_thread;
 static wiced_mutex_t			dct_mutex;
 static char				passkey[7] = DEFAULT_PASSKEY;
 data_q_t				bt_to_wifi_data;
+wiced_bt_smart_attribute_t 		write_attribute;
 
 static wiced_timed_event_t ble_data_write_event;
 static wiced_timed_event_t ble_data_send_event;
@@ -330,7 +332,6 @@ void application_start( )
 		WPRINT_APP_INFO( ("BLE_DATA_WRITE Register faiuled\n") );
 	}
 
-
 	/* Start scanning for advertising remote Bluetooth devices */
 	start_scan();
  }
@@ -357,13 +358,13 @@ static wiced_result_t scan_complete_handler( void )
 {
 	wiced_bt_device_address_t address = {0xdb, 0x5b, 0xc3, 0x68, 0x1a, 0xad};
 
-		WPRINT_APP_INFO(("[App] Scan complete\n"));
+	WPRINT_APP_INFO(("[App] Scan complete\n"));
 
-		ble_connect ( address );
+	ble_connect ( address );
 
 
-		/* Scan duration is complete */
-		return WICED_SUCCESS;
+	/* Scan duration is complete */
+	return WICED_SUCCESS;
 }
 
 /* Scan result handler. Scan result is reported via this callback.
@@ -394,48 +395,45 @@ static wiced_result_t scan_advertising_report_handler( const wiced_bt_smart_adve
  */
 static wiced_result_t connect_handler( void* arg )
 {
-    wiced_bt_smart_scan_result_t* scan_result = (wiced_bt_smart_scan_result_t*)arg;
-		wiced_bt_smart_bond_info_t		bond_info;
-		uint32_t i;
+	wiced_bt_smart_scan_result_t* scan_result = (wiced_bt_smart_scan_result_t*)arg;
+	wiced_bt_smart_bond_info_t		bond_info;
+	wiced_bt_smartbridge_socket_status_t	status;
+	uint32_t i;
 
-		/* Iterate all sockets and look for the first available socket */
-		for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ )
-		{
-				wiced_bt_smartbridge_socket_status_t status;
+	/* Iterate all sockets and look for the first available socket */
+	for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ ) {
+		wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
 
-				wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
-
-				/* A free socket is found. Use it to connect */
-				if ( status == SMARTBRIDGE_SOCKET_DISCONNECTED )
-				{
-						if ( find_bond_info( (const wiced_bt_device_address_t *)&scan_result->remote_device.address, scan_result->remote_device.address_type, &bond_info ) == WICED_SUCCESS )
-						{
-								/* Bond info found. Load bond info to socket */
-								wiced_bt_smartbridge_set_bond_info( &smartbridge_socket[i], &security_settings, (const wiced_bt_smart_bond_info_t*)&bond_info );
-						} else {
-								if (security_settings.authentication_requirements != BT_SMART_AUTH_REQ_NONE)
-								{
-										/* Bond info not found. Initiate pairing request */
-										wiced_bt_smartbridge_enable_pairing( &smartbridge_socket[i], &security_settings, passkey, pairing_handler );
-								}
-						}
-						/* Connect */
-						if ( wiced_bt_smartbridge_connect( &smartbridge_socket[i], &scan_result->remote_device,
-                    &connection_settings, disconnection_handler, notification_handler ) == WICED_SUCCESS )
-						{
-								/* Enable Attribute Cache notification */
-								WPRINT_APP_INFO(("[App] Smartbridge connection executing...\n"));
-								wiced_bt_smartbridge_enable_attribute_cache_notification( &smartbridge_socket[i] );
-								return WICED_SUCCESS;
-						}
-						else
-						{
-								return WICED_ERROR;
-						}
+		/* A free socket is found. Use it to connect */
+		if ( status == SMARTBRIDGE_SOCKET_DISCONNECTED ) {
+			if ( find_bond_info( (const wiced_bt_device_address_t *)&scan_result->remote_device.address,
+						scan_result->remote_device.address_type, &bond_info )
+						== WICED_SUCCESS ) {
+				/* Bond info found. Load bond info to socket */
+				wiced_bt_smartbridge_set_bond_info( &smartbridge_socket[i], &security_settings,
+					(const wiced_bt_smart_bond_info_t*)&bond_info );
+			} else {
+				if (security_settings.authentication_requirements != BT_SMART_AUTH_REQ_NONE) {
+					/* Bond info not found. Initiate pairing request */
+					wiced_bt_smartbridge_enable_pairing( &smartbridge_socket[i],
+						&security_settings, passkey, pairing_handler );
 				}
+			}
+			/* Connect */
+			if ( wiced_bt_smartbridge_connect( &smartbridge_socket[i], &scan_result->remote_device,
+				&connection_settings, disconnection_handler, notification_handler ) == WICED_SUCCESS ) {
+					/* Enable Attribute Cache notification */
+					WPRINT_APP_INFO(("[App] Smartbridge connection executing...\n"));
+					wiced_bt_smartbridge_enable_attribute_cache_notification( &smartbridge_socket[i] );
+					return WICED_SUCCESS;
+				}
+				else {
+					return WICED_ERROR;
+				}
+			}
 		}
 
-		return WICED_ERROR;
+	return WICED_ERROR;
 }
 
 /* Disconnection handler. Disconnection by remote device is reported via this callback.
@@ -454,7 +452,7 @@ static wiced_result_t notification_handler( wiced_bt_smartbridge_socket_t* socke
 	/* GATT value notification event. attribute_handle is the handle
 	 * which value of the attribute is updated by the remote device.
 	 */
-	 ble_data_write(attribute_handle);
+	 ble_data_write(&attribute_handle);
 
 	 return WICED_SUCCESS;
 }
@@ -464,10 +462,10 @@ static wiced_result_t notification_handler( wiced_bt_smartbridge_socket_t* socke
  */
 static wiced_result_t pairing_handler( wiced_bt_smartbridge_socket_t* socket, const wiced_bt_smart_bond_info_t* bond_info )
 {
-		/* Pairing successful. Store bond info */
-		store_bond_info( bond_info );
+	/* Pairing successful. Store bond info */
+	store_bond_info( bond_info );
 
-		return WICED_SUCCESS;
+	return WICED_SUCCESS;
 }
 
 /* Update webpage
@@ -509,9 +507,10 @@ process_smartbridge_report( const char* url_path, const char* url_parameters,
  */
 static wiced_result_t ble_connect( wiced_bt_device_address_t address )
 {
+	wiced_bt_smart_scan_result_t* temp;
+	uint32_t count;
+
 	if ( wiced_bt_smartbridge_is_ready_to_connect() == WICED_TRUE )	{
-		wiced_bt_smart_scan_result_t* temp;
-		uint32_t count;
 
 		wiced_bt_smartbridge_get_scan_result_list( &temp, &count );
 
@@ -582,66 +581,63 @@ static int32_t
 process_disconnect( const char* url_path, const char* url_parameters, wiced_http_response_stream_t* stream,
 	void* arg, wiced_http_message_body_t* http_message_body )
 {
-		wiced_bt_device_address_t address;
-		uint32_t i;
-		UNUSED_PARAMETER(http_message_body);
-		UNUSED_PARAMETER(url_path);
+	wiced_bt_device_address_t address;
+	uint32_t i;
+	wiced_bt_smartbridge_socket_status_t status;
+	UNUSED_PARAMETER(http_message_body);
+	UNUSED_PARAMETER(url_path);
 
-		/* BD_ADDR is passed within the URL. Parse it here */
-		convert_address_string_to_type( url_parameters, &address );
+	/* BD_ADDR is passed within the URL. Parse it here */
+	convert_address_string_to_type( url_parameters, &address );
 
-		for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ ) {
-				wiced_bt_smartbridge_socket_status_t status;
+	for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ ) {
+		wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
 
-				wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
+		if ( status == SMARTBRIDGE_SOCKET_CONNECTED ) {
+			/* If found, Disconnect and restart scan */
+			if ( memcmp( address, smartbridge_socket[i].remote_device.address, sizeof( address ) ) == 0 ) {
+				/* Disable notification */
+				wiced_bt_smartbridge_disable_attribute_cache_notification( &smartbridge_socket[i] );
 
-				if ( status == SMARTBRIDGE_SOCKET_CONNECTED ) {
-					/* If found, Disconnect and restart scan */
-					if ( memcmp( address, smartbridge_socket[i].remote_device.address, sizeof( address ) ) == 0 ) {
-						/* Disable notification */
-						wiced_bt_smartbridge_disable_attribute_cache_notification( &smartbridge_socket[i] );
-
-						/* Disconnect */
-						wiced_bt_smartbridge_disconnect( &smartbridge_socket[i] );
-						return 0;
-					}
-				}
+				/* Disconnect */
+				wiced_bt_smartbridge_disconnect( &smartbridge_socket[i] );
+				return 0;
+			}
 		}
-		return 0;
+	}
+	return 0;
 }
 
 /* Process 'Details' button click from the webpage
  * It runs on the webserver thread context.
  */
-static int32_t process_details( const char* url_path, const char* url_parameters, wiced_http_response_stream_t* stream, void* arg,	wiced_http_message_body_t* http_message_body )
+static int32_t
+process_details( const char* url_path, const char* url_parameters, wiced_http_response_stream_t* stream,
+	void* arg, wiced_http_message_body_t* http_message_body )
 {
-		wiced_bt_device_address_t address;
-		uint32_t i;
-		UNUSED_PARAMETER(http_message_body);
-		UNUSED_PARAMETER(url_path);
+	wiced_bt_device_address_t 		address;
+	wiced_bt_smartbridge_socket_status_t	status;
+	uint32_t i;
+	UNUSED_PARAMETER(http_message_body);
+	UNUSED_PARAMETER(url_path);
 
-		/* BD_ADDR is passed within the URL. Parse it here */
-		convert_address_string_to_type( url_parameters, &address );
+	/* BD_ADDR is passed within the URL. Parse it here */
+	convert_address_string_to_type( url_parameters, &address );
 
-		for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ )
-		{
-				wiced_bt_smartbridge_socket_status_t status;
+	for ( i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++ ) {
+		wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
 
-				wiced_bt_smartbridge_get_socket_status( &smartbridge_socket[i], &status );
+		if ( status == SMARTBRIDGE_SOCKET_CONNECTED ) {
+			/* If found, Disconnect and restart scan */
+			if ( memcmp( address, smartbridge_socket[i].remote_device.address, sizeof( address ) ) == 0 ) {
+				socket_with_attributes_to_display = &smartbridge_socket[i];
 
-				if ( status == SMARTBRIDGE_SOCKET_CONNECTED )
-				{
-						/* If found, Disconnect and restart scan */
-						if ( memcmp( address, smartbridge_socket[i].remote_device.address, sizeof( address ) ) == 0 )
-						{
-								socket_with_attributes_to_display = &smartbridge_socket[i];
-
-								return 0;
-						}
-				}
+				return 0;
+			}
 		}
+	}
 
-		return 0;
+	return 0;
 }
 
 /* Process 'Return' button click from the webpage
@@ -671,7 +667,8 @@ static int32_t process_rescan( const char* url_path, const char* url_parameters,
 
 /* Process 'onblur' event from the passkey textbox
  */
-static int32_t process_passkey( const char* url_path, const char* url_parameters, wiced_http_response_stream_t* stream, void* arg,	wiced_http_message_body_t* http_message_body )
+static int32_t process_passkey( const char* url_path, const char* url_parameters,
+	wiced_http_response_stream_t* stream, void* arg, wiced_http_message_body_t* http_message_body )
 {
 		uint8_t length	= 0;
 		char*	 url_ptr = (char*)url_parameters;
@@ -1033,7 +1030,7 @@ static wiced_result_t store_bond_info( const wiced_bt_smart_bond_info_t* bond_in
 static wiced_result_t ble_data_write (void* arg)
 {
 	char				buffer[256];
-	static wiced_bool_t		read_attribute_found;
+	//static wiced_bool_t		read_attribute_found;
 	static wiced_bt_smart_attribute_t read_attribute;
 	wiced_bt_smartbridge_socket_status_t	status;
 	uint16_t			starting_handle = 0;
@@ -1142,6 +1139,9 @@ connected_socket_found:
 									buffer_length = sprintf( buffer, "%02X ", read_attribute.value.value[i] );
 								}
 							}
+
+							if (read_attribute.type.uu.uuid16 == 0x2222)
+								write_attribute = read_attribute;
 					}
 			}
 		}
@@ -1158,7 +1158,7 @@ connected_socket_found:
 static wiced_result_t ble_data_send (void *arg)
 {
 	wiced_bt_smartbridge_socket_status_t	status;
-	wiced_bt_smart_attribute_t		write_attribute;
+	//wiced_bt_smart_attribute_t		write_attribute;
 	int 					i;
 	UNUSED_PARAMETER( arg );
 
@@ -1170,20 +1170,20 @@ static wiced_result_t ble_data_send (void *arg)
 		return WICED_ERROR;
 	}
 
-	if (wiced_bt_smartbridge_get_attribute_cache_by_handle(csv_socket, 0x0d,
+	/*if (wiced_bt_smartbridge_get_attribute_cache_by_handle(csv_socket, 0x0d,
 		&write_attribute, sizeof(write_attribute)) != WICED_SUCCESS ) {
 		 WPRINT_APP_DEBUG(("[SmartBridgeApp] Could not find 0x0d attribute\n"));
 		return WICED_ERROR;
-	}
+	}*/
 
-	if (write_attribute.type.uu.uuid16 == 0x2222) {
+	//if (write_attribute.type.uu.uuid16 == 0x2222) {
 		write_attribute.value_length = 20;
 		for (i = 0; i < 20;  i++ )
 			write_attribute.value.value[i] = 0x44;
 		if (wiced_bt_smartbridge_write_attribute_cache_characteristic_value(csv_socket, &write_attribute) == WICED_SUCCESS);
 			WPRINT_APP_DEBUG(("[SmartBridgeApp] Write BLE att\n"));
 		//wiced_bt_smartbridge_gatt_write_characteristic_value( socket, &attribute );
-	}
+	//}
 
 	return WICED_SUCCESS;
 }
