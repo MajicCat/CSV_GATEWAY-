@@ -108,6 +108,8 @@
 
 #define BLE_DATA_WRITE_INTERVAL		100
 
+#define BLE_DATA_WRITE_MAXLENGTH	20
+
 /******************************************************
  *			Enumerations
  ******************************************************/
@@ -1140,26 +1142,21 @@ connected_socket_found:
 								}
 							}
 
+							/* FIXME: This is ugly! Fix this */
 							if (read_attribute.type.uu.uuid16 == 0x2222)
 								write_attribute = read_attribute;
 					}
 			}
 		}
 	}
-	//wiced_bt_smartbridge_gatt_write_characteristic_value( socket, &new_attribute );
 	return WICED_SUCCESS;
 }
-
-/*static wiced_result_t ble_find_write_handle( void )
-{
-
-}*/
 
 static wiced_result_t ble_data_send (void *arg)
 {
 	wiced_bt_smartbridge_socket_status_t	status;
 	//wiced_bt_smart_attribute_t		write_attribute;
-	int 					i;
+	int 					i, ble_data_length;
 	UNUSED_PARAMETER( arg );
 
 	wiced_bt_smartbridge_get_socket_status( csv_socket, &status );
@@ -1170,20 +1167,32 @@ static wiced_result_t ble_data_send (void *arg)
 		return WICED_ERROR;
 	}
 
+	/* FIXME: Can we write via handle instead */
 	/*if (wiced_bt_smartbridge_get_attribute_cache_by_handle(csv_socket, 0x0d,
 		&write_attribute, sizeof(write_attribute)) != WICED_SUCCESS ) {
 		 WPRINT_APP_DEBUG(("[SmartBridgeApp] Could not find 0x0d attribute\n"));
 		return WICED_ERROR;
 	}*/
+	/* wiced_bt_smartbridge_gatt_write_characteristic_value( socket, &attribute ); */
 
-	//if (write_attribute.type.uu.uuid16 == 0x2222) {
-		write_attribute.value_length = 20;
-		for (i = 0; i < 20;  i++ )
-			write_attribute.value.value[i] = 0x44;
-		if (wiced_bt_smartbridge_write_attribute_cache_characteristic_value(csv_socket, &write_attribute) == WICED_SUCCESS);
+	/* Make sure not to send more than MAX */
+	if ((ble_data_length = data_q_data_avail_ctr(wifi_to_bt_data))
+			> BLE_DATA_WRITE_MAXLENGTH)
+		ble_data_length = BLE_DATA_WRITE_MAXLENGTH;
+
+	if (ble_data_length == 0)
+		return WICED_FALSE;
+
+	WPRINT_APP_INFO(("[SmartBridgeApp] ble_data_length:%d\n", ble_data_length));
+
+	write_attribute.value_length = ble_data_length;
+
+	if (read_from_data_q ((char *)&write_attribute.value, &wifi_to_bt_data, ble_data_length) == 0)
+		WPRINT_APP_INFO(("[SmartBridgeApp] Error on reading from queue\n"));
+
+	/* TODO: Should I use long characteristic write? */
+	if (wiced_bt_smartbridge_write_attribute_cache_characteristic_value(csv_socket, &write_attribute) == WICED_SUCCESS);
 			WPRINT_APP_DEBUG(("[SmartBridgeApp] Write BLE att\n"));
-		//wiced_bt_smartbridge_gatt_write_characteristic_value( socket, &attribute );
-	//}
 
 	return WICED_SUCCESS;
 }

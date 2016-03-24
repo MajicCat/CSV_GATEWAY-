@@ -58,6 +58,23 @@ wiced_result_t write_to_data_q(uint8_t new_data, data_q_t *data_q)
 	return WICED_SUCCESS;
 }
 
+int read_from_data_q (char *tx_data, data_q_t *data_q, int length)
+{
+	int data_to_copy = data_q_data_avail_ctr(*data_q);
+	int data_copied = 0;
+
+	data_to_copy = ((data_to_copy >= length) ? length : data_to_copy);
+
+	while (data_to_copy > 0) {
+		*tx_data = (char)data_q->data[data_q->r_indx];
+		tx_data++;
+		data_q->r_indx = (data_q->r_indx + 1) % DATA_Q_SZ;
+		data_copied++;
+		data_to_copy--;
+	}
+
+	return data_copied;
+}
 
 /* FIXME: Need to read operation in two steps.
  * We are screwed, if the operation fails
@@ -66,12 +83,7 @@ wiced_result_t flush_data_q (char *tx_data, data_q_t *data_q)
 {
 	int data_to_copy = data_q_data_avail_ctr(*data_q);
 
-	while (data_to_copy > 0) {
-		*tx_data = (char)data_q->data[data_q->r_indx];
-		tx_data++;
-		data_q->r_indx = (data_q->r_indx + 1) % DATA_Q_SZ;
-		data_to_copy--;
-	}
+	read_from_data_q(tx_data, data_q, data_to_copy);
 
 	WPRINT_APP_INFO(("[TCPClient]: What happened to queue w:%d, r:%d\n",
 				data_q->w_indx, data_q->r_indx ));

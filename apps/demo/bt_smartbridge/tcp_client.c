@@ -35,9 +35,10 @@ static wiced_result_t tcp_client();
 /******************************************************
  *	       Variable Definitions
  ******************************************************/
+ data_q_t			wifi_to_bt_data;
 
-static wiced_tcp_socket_t  tcp_client_socket;
-static wiced_timed_event_t tcp_client_event;
+static wiced_tcp_socket_t 	tcp_client_socket;
+static wiced_timed_event_t	tcp_client_event;
 
 wiced_result_t tcp_client_init(wiced_interface_t interface)
 {
@@ -143,15 +144,13 @@ static wiced_result_t tcp_client( void* arg )
 	/* Get the contents of the received packet */
 	wiced_packet_get_data(rx_packet, 0, (uint8_t**)&rx_data, &rx_data_length, &available_data_length);
 
-	WPRINT_APP_INFO(("Size:%d, avail:%d\n", rx_data_length,
-			available_data_length));
-	/*for (i = 0; i < rx_data_length; i++) {
-		if ((i % 50) == 0)
-		 	WPRINT_APP_INFO(("\n"));
-		WPRINT_APP_INFO(("0x%x ", rx_data[i]));
+	WPRINT_APP_INFO(("Size:%d, avail:%d\n", rx_data_length, available_data_length));
+	for (i = 0; i < rx_data_length; i++) {
+		if (write_to_data_q(rx_data[i], &wifi_to_bt_data) != WICED_SUCCESS) {
+			WPRINT_APP_ERROR( ("[SmartBridgeApp] Could not write TCP value to",
+					"Queue!! Timing wrong?\r\n") );
+		}
 	}
-	WPRINT_APP_INFO(("\n"));*/
-
 
 	/* Delete the packet and terminate the connection */
 	wiced_packet_delete(rx_packet);
